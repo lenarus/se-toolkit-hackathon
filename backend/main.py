@@ -404,18 +404,43 @@ async def _call_llm(prompt: str) -> str:
 def _rule_based_insight(prompt: str) -> str:
     """Simple insight without external LLM."""
     lines = []
-    matches = re.findall(
+    # Parse: "- handle: rating N, solved M, top tags: tag1:N1, tag2:N2, tag3:N3"
+    user_blocks = re.findall(
         r"- (\w+): rating (\d+), solved (\d+), top tags: (.+)", prompt
     )
-    if len(matches) >= 2:
-        best = max(matches, key=lambda m: int(m[1]))
+    if len(user_blocks) >= 2:
+        best = max(user_blocks, key=lambda m: int(m[1]))
         lines.append(f"🏆 **{best[0]}** has the highest rating ({best[1]}).")
-        most = max(matches, key=lambda m: int(m[2]))
+        most = max(user_blocks, key=lambda m: int(m[2]))
         if most[0] != best[0]:
             lines.append(f"📚 **{most[0]}** solved the most problems ({most[2]}).")
-        for handle, rating, solved, tags in matches:
-            if tags and tags != "none":
-                lines.append(f"💡 **{handle}** is strongest in *{tags.split(':')[0].strip()}* problems.")
+
+        # Build a map: tag -> list of (handle, count)
+        tag_leaders: dict[str, list[tuple[str, int]]] = {}
+        for handle, _rating, _solved, tags_str in user_blocks:
+            if tags_str and tags_str != "none":
+                for part in tags_str.split(","):
+                    part = part.strip()
+                    if ":" in part:
+                        tag, count_str = part.rsplit(":", 1)
+                        tag = tag.strip()
+                        try:
+                            count = int(count_str.strip())
+                        except ValueError:
+                            continue
+                        tag_leaders.setdefault(tag, []).append((handle, count))
+
+        # Only highlight a tag if someone is uniquely ahead in it
+        for tag, entries in tag_leaders.items():
+            if len(entries) == 1:
+                handle, count = entries[0]
+                lines.append(f"💡 **{handle}** is strongest in *{tag}* problems ({count} solved).")
+            else:
+                top_count = max(c for _, c in entries)
+                leaders = [h for h, c in entries if c == top_count]
+                if len(leaders) == 1:
+                    lines.append(f"💡 **{leaders[0]}** leads in *{tag}* problems ({top_count} solved).")
+
     if not lines:
         lines.append("Not enough data to generate insights.")
     return "\n".join(lines)
