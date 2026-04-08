@@ -30,6 +30,11 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-cfuser}:${POSTGRES_PASSWORD:-cfpassword}@db:5432/${POSTGRES_DB:-cfcompare}
       API_KEY: ${API_KEY}
       API_SECRET: ${API_SECRET}
+      CACHE_TTL_SECONDS: ${CACHE_TTL_SECONDS:-600}
+      LLM_API_URL: ${LLM_API_URL:-}
+      LLM_MODEL: ${LLM_MODEL:-}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-change-me-in-production}
     ports:
       - "8000:8000"
     depends_on:

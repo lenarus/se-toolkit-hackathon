@@ -12,7 +12,9 @@
       "Bash(sleep *)",
       "Bash(sudo *)",
       "Bash(ss *)",
-      "Bash(hostname *)"
+      "Bash(hostname *)",
+      "Bash(docker exec *)",
+      "Bash(docker logs *)"
     ]
   },
   "$version": 3

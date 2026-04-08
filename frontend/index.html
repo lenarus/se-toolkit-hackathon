@@ -3,66 +3,134 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CF Compare - Codeforces User Comparison</title>
+    <title>CF Compare v2 — Codeforces Comparison Tool</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>🏆 CF Compare</h1>
-            <p class="subtitle">Compare Codeforces users and see their performance side by side</p>
+            <h1>🏆 CF Compare <span class="version-badge">v2</span></h1>
+            <p class="subtitle">Compare Codeforces users — rating charts, tag analysis, AI insights & history</p>
         </header>
 
-        <!-- Input Section -->
-        <section class="input-section">
-            <div class="input-group">
-                <label for="handles-input">Enter Codeforces handles (comma-separated):</label>
-                <input 
-                    type="text" 
-                    id="handles-input" 
-                    placeholder="e.g., tourist, petr, Benq"
-                    value="tourist, petr"
-                >
-                <button id="compare-btn" onclick="compareUsers()">
-                    Compare
-                </button>
-            </div>
-            <p class="hint">Enter 2-5 handles separated by commas</p>
-        </section>
+        <!-- ═══════════ AUTH SCREEN ═══════════ -->
+        <div id="auth-screen">
+            <div class="auth-card">
+                <!-- Login Form -->
+                <div id="login-form">
+                    <h2>🔑 Login</h2>
+                    <form onsubmit="handleLogin(event)">
+                        <label>Username</label>
+                        <input type="text" id="login-user" placeholder="your username" required>
+                        <label>Password</label>
+                        <input type="password" id="login-pass" placeholder="your password" required>
+                        <button type="submit" class="btn-primary">Login</button>
+                    </form>
+                    <p class="auth-link">
+                        Don't have an account?
+                        <a href="#" onclick="showRegister()">Sign up</a>
+                    </p>
+                    <div id="login-error" class="error hidden"></div>
+                </div>
 
-        <!-- Loading Indicator -->
-        <div id="loading" class="loading hidden">
-            <div class="spinner"></div>
-            <p>Fetching data from Codeforces...</p>
+                <!-- Register Form -->
+                <div id="register-form" class="hidden">
+                    <h2>📝 Register</h2>
+                    <form onsubmit="handleRegister(event)">
+                        <label>Username</label>
+                        <input type="text" id="reg-user" placeholder="pick a username" required minlength="3">
+                        <label>Password</label>
+                        <input type="password" id="reg-pass" placeholder="choose a password" required minlength="4">
+                        <button type="submit" class="btn-primary">Create Account</button>
+                    </form>
+                    <p class="auth-link">
+                        Already have an account?
+                        <a href="#" onclick="showLogin()">Login</a>
+                    </p>
+                    <div id="reg-error" class="error hidden"></div>
+                </div>
+            </div>
         </div>
 
-        <!-- Error Message -->
-        <div id="error-message" class="error hidden"></div>
-
-        <!-- Results Table -->
-        <section id="results-section" class="hidden">
-            <h2>Comparison Results</h2>
-            <div class="table-container">
-                <table id="comparison-table">
-                    <thead>
-                        <tr>
-                            <th>Metric</th>
-                            <!-- User columns will be added dynamically -->
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <!-- Rows will be added dynamically -->
-                    </tbody>
-                </table>
+        <!-- ═══════════ APP SCREEN ═══════════ -->
+        <div id="app-screen" class="hidden">
+            <!-- Top bar with user info -->
+            <div class="top-bar">
+                <span id="user-display">👤 user</span>
+                <button class="btn-sm logout-btn" onclick="logout()">Logout</button>
             </div>
-        </section>
 
-        <!-- Footer -->
+            <!-- Navigation Tabs -->
+            <nav class="tabs">
+                <button class="tab active" data-tab="compare" onclick="switchTab('compare')">⚔️ Compare</button>
+                <button class="tab" data-tab="history" onclick="switchTab('history')">📜 History</button>
+            </nav>
+
+            <!-- ── COMPARE TAB ── -->
+            <div id="tab-compare" class="tab-content active">
+                <section class="input-section">
+                    <div class="input-group">
+                        <label for="handles-input">Enter Codeforces handles (comma-separated):</label>
+                        <input type="text" id="handles-input" placeholder="e.g., tourist, petr, Benq" value="tourist, petr">
+                        <button id="compare-btn" onclick="compareUsers()">Compare</button>
+                    </div>
+                    <p class="hint">Enter 2–5 handles separated by commas</p>
+                </section>
+
+                <div id="loading" class="loading hidden">
+                    <div class="spinner"></div>
+                    <p>Fetching data from Codeforces…</p>
+                </div>
+
+                <div id="error-message" class="error hidden"></div>
+
+                <div id="results-container" class="hidden">
+                    <div id="summary-bar" class="summary-bar hidden">
+                        <span id="summary-text"></span>
+                        <button class="btn-sm" onclick="generateInsight()">✨ Generate Insight</button>
+                    </div>
+                    <div id="insight-box" class="insight-box hidden"></div>
+
+                    <section class="result-card">
+                        <h2>📊 Comparison Table</h2>
+                        <div class="table-container">
+                            <table id="comparison-table"><thead><tr><th>Metric</th></tr></thead><tbody></tbody></table>
+                        </div>
+                    </section>
+
+                    <section class="result-card">
+                        <h2>📈 Rating Over Time</h2>
+                        <div class="chart-container">
+                            <canvas id="rating-chart" height="300"></canvas>
+                        </div>
+                    </section>
+
+                    <section class="result-card">
+                        <h2>🏷️ Top Problem Tags</h2>
+                        <div id="tag-charts" class="tag-charts-grid"></div>
+                    </section>
+                </div>
+            </div>
+
+            <!-- ── HISTORY TAB ── -->
+            <div id="tab-history" class="tab-content">
+                <h2>📜 Your Comparison History</h2>
+                <div id="history-loading" class="loading hidden">
+                    <div class="spinner"></div>
+                    <p>Loading history…</p>
+                </div>
+                <div id="history-list"></div>
+            </div>
+        </div>
+
         <footer>
-            <p>Data provided by <a href="https://codeforces.com" target="_blank">Codeforces API</a></p>
+            <p>Data from <a href="https://codeforces.com" target="_blank">Codeforces API</a> ·
+               Built with FastAPI + PostgreSQL</p>
         </footer>
     </div>
 
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="app.js"></script>
 </body>
 </html>
