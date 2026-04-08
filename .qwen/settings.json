@@ -16,7 +16,14 @@
       "Bash(docker exec *)",
       "Bash(docker logs *)",
       "Bash(echo *)",
-      "Bash(head *)"
+      "Bash(head *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git push *)",
+      "Bash(git remote *)",
+      "Bash(gh *)",
+      "Bash(ssh-keyscan *)",
+      "Bash(git config *)"
     ]
   },
   "$version": 3
