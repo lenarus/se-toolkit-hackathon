@@ -14,7 +14,9 @@
       "Bash(ss *)",
       "Bash(hostname *)",
       "Bash(docker exec *)",
-      "Bash(docker logs *)"
+      "Bash(docker logs *)",
+      "Bash(echo *)",
+      "Bash(head *)"
     ]
   },
   "$version": 3

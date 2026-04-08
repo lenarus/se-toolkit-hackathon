@@ -16,7 +16,6 @@
         <!-- ═══════════ AUTH SCREEN ═══════════ -->
         <div id="auth-screen">
             <div class="auth-card">
-                <!-- Login Form -->
                 <div id="login-form">
                     <h2>🔑 Login</h2>
                     <form onsubmit="handleLogin(event)">
@@ -26,14 +25,9 @@
                         <input type="password" id="login-pass" placeholder="your password" required>
                         <button type="submit" class="btn-primary">Login</button>
                     </form>
-                    <p class="auth-link">
-                        Don't have an account?
-                        <a href="#" onclick="showRegister()">Sign up</a>
-                    </p>
+                    <p class="auth-link">Don't have an account? <a href="#" onclick="showRegister()">Sign up</a></p>
                     <div id="login-error" class="error hidden"></div>
                 </div>
-
-                <!-- Register Form -->
                 <div id="register-form" class="hidden">
                     <h2>📝 Register</h2>
                     <form onsubmit="handleRegister(event)">
@@ -43,10 +37,7 @@
                         <input type="password" id="reg-pass" placeholder="choose a password" required minlength="4">
                         <button type="submit" class="btn-primary">Create Account</button>
                     </form>
-                    <p class="auth-link">
-                        Already have an account?
-                        <a href="#" onclick="showLogin()">Login</a>
-                    </p>
+                    <p class="auth-link">Already have an account? <a href="#" onclick="showLogin()">Login</a></p>
                     <div id="reg-error" class="error hidden"></div>
                 </div>
             </div>
@@ -54,16 +45,15 @@
 
         <!-- ═══════════ APP SCREEN ═══════════ -->
         <div id="app-screen" class="hidden">
-            <!-- Top bar with user info -->
             <div class="top-bar">
                 <span id="user-display">👤 user</span>
                 <button class="btn-sm logout-btn" onclick="logout()">Logout</button>
             </div>
 
-            <!-- Navigation Tabs -->
             <nav class="tabs">
                 <button class="tab active" data-tab="compare" onclick="switchTab('compare')">⚔️ Compare</button>
                 <button class="tab" data-tab="history" onclick="switchTab('history')">📜 History</button>
+                <button class="tab" data-tab="stats" onclick="switchTab('stats')">📊 Stats</button>
             </nav>
 
             <!-- ── COMPARE TAB ── -->
@@ -77,17 +67,13 @@
                     <p class="hint">Enter 2–5 handles separated by commas</p>
                 </section>
 
-                <div id="loading" class="loading hidden">
-                    <div class="spinner"></div>
-                    <p>Fetching data from Codeforces…</p>
-                </div>
-
+                <div id="loading" class="loading hidden"><div class="spinner"></div><p>Fetching data from Codeforces…</p></div>
                 <div id="error-message" class="error hidden"></div>
 
                 <div id="results-container" class="hidden">
                     <div id="summary-bar" class="summary-bar hidden">
                         <span id="summary-text"></span>
-                        <button class="btn-sm" onclick="generateInsight()">✨ Generate Insight</button>
+                        <button class="btn-sm" onclick="generateInsight()">✨ Insight</button>
                     </div>
                     <div id="insight-box" class="insight-box hidden"></div>
 
@@ -100,9 +86,7 @@
 
                     <section class="result-card">
                         <h2>📈 Rating Over Time</h2>
-                        <div class="chart-container">
-                            <canvas id="rating-chart" height="300"></canvas>
-                        </div>
+                        <div class="chart-container"><canvas id="rating-chart" height="300"></canvas></div>
                     </section>
 
                     <section class="result-card">
@@ -115,21 +99,80 @@
             <!-- ── HISTORY TAB ── -->
             <div id="tab-history" class="tab-content">
                 <h2>📜 Your Comparison History</h2>
-                <div id="history-loading" class="loading hidden">
-                    <div class="spinner"></div>
-                    <p>Loading history…</p>
-                </div>
+                <div id="history-loading" class="loading hidden"><div class="spinner"></div><p>Loading history…</p></div>
                 <div id="history-list"></div>
+            </div>
+
+            <!-- ── STATS TAB ── -->
+            <div id="tab-stats" class="tab-content">
+                <h2>📊 Statistics & Analytics</h2>
+
+                <!-- Stats sub-tabs -->
+                <div class="stats-subtabs">
+                    <button class="subtab active" data-sub="leaderboard" onclick="switchSubtab('leaderboard')">🏅 Leaderboard</button>
+                    <button class="subtab" data-sub="improvement" onclick="switchSubtab('improvement')">📈 Most Improved</button>
+                    <button class="subtab" data-sub="head2head" onclick="switchSubtab('head2head')">⚔️ Head-to-Head</button>
+                    <button class="subtab" data-sub="rating-progress" onclick="switchSubtab('rating-progress')">📉 Rating Progress</button>
+                    <button class="subtab" data-sub="activity" onclick="switchSubtab('activity')">📅 Activity</button>
+                </div>
+
+                <div id="stats-error" class="error hidden"></div>
+
+                <!-- 4a. Leaderboard -->
+                <div id="sub-leaderboard" class="sub-content active">
+                    <div class="stats-controls">
+                        <button class="btn-sm" onclick="loadLeaderboard()">Load Leaderboard</button>
+                    </div>
+                    <div id="leaderboard-loading" class="loading hidden"><div class="spinner"></div><p>Loading…</p></div>
+                    <div id="leaderboard-data"></div>
+                </div>
+
+                <!-- 4b. Most Improved -->
+                <div id="sub-improvement" class="sub-content">
+                    <div class="stats-controls">
+                        <button class="btn-sm" onclick="loadImprovement()">Load Most Improved</button>
+                    </div>
+                    <div id="improvement-loading" class="loading hidden"><div class="spinner"></div><p>Loading…</p></div>
+                    <div id="improvement-data"></div>
+                </div>
+
+                <!-- 4c. Head-to-Head -->
+                <div id="sub-head2head" class="sub-content">
+                    <div class="stats-controls">
+                        <input type="text" id="h2h-userA" placeholder="User A (e.g. tourist)" value="tourist">
+                        <input type="text" id="h2h-userB" placeholder="User B (e.g. petr)" value="petr">
+                        <button class="btn-sm" onclick="loadHeadToHead()">Compare</button>
+                    </div>
+                    <div id="h2h-loading" class="loading hidden"><div class="spinner"></div><p>Loading…</p></div>
+                    <div id="h2h-data"></div>
+                </div>
+
+                <!-- 4d. Rating Progress -->
+                <div id="sub-rating-progress" class="sub-content">
+                    <div class="stats-controls">
+                        <input type="text" id="rp-handle" placeholder="Handle (e.g. tourist)" value="tourist">
+                        <button class="btn-sm" onclick="loadRatingProgress()">Show Progress</button>
+                    </div>
+                    <div id="rp-loading" class="loading hidden"><div class="spinner"></div><p>Loading…</p></div>
+                    <div id="rp-data"></div>
+                </div>
+
+                <!-- 4e. Activity -->
+                <div id="sub-activity" class="sub-content">
+                    <div class="stats-controls">
+                        <button class="btn-sm" onclick="loadActivity()">Load Activity</button>
+                    </div>
+                    <div id="activity-loading" class="loading hidden"><div class="spinner"></div><p>Loading…</p></div>
+                    <div id="activity-data"></div>
+                </div>
             </div>
         </div>
 
         <footer>
-            <p>Data from <a href="https://codeforces.com" target="_blank">Codeforces API</a> ·
-               Built with FastAPI + PostgreSQL</p>
+            <p>Data from <a href="https://codeforces.com" target="_blank">Codeforces API</a> · Built with FastAPI + PostgreSQL</p>
         </footer>
     </div>
 
-    <!-- Chart.js CDN -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="app.js"></script>
 </body>

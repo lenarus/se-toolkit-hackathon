@@ -21,7 +21,7 @@ import httpx
 from fastapi import FastAPI, HTTPException, Query, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from sqlalchemy import create_engine, Column, Integer, Text, DateTime, func, JSON
+from sqlalchemy import create_engine, Column, Integer, Text, DateTime, func, JSON, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 import jwt  # PyJWT
@@ -643,6 +643,218 @@ async def get_or_generate_insight(
         db.add(InsightModel(comparison_id=comp_id, content=content))
         db.commit()
         return InsightPayload(comparison_id=comp_id, content=content)
+    finally:
+        db.close()
+
+
+# ─── Stats & Analytics Endpoints ──────────────────────────────────────────
+
+# ─── 1. Rating Progress Over Time ─────────────────────────────────────────
+
+@app.get("/stats/rating-progress/{handle}")
+async def rating_progress(handle: str, user: CFUser = Depends(get_current_user)):
+    """
+    For a given CF handle, return all stored (created_at, rating) pairs
+    from comparison_results, ordered by time.
+
+    This shows how the user's rating evolved each time someone compared them.
+    """
+    db = SessionLocal()
+    try:
+        rows = db.execute(
+            text("""
+                SELECT c.created_at, cr.rating
+                FROM comparison_results cr
+                JOIN comparisons c ON c.id = cr.comparison_id
+                WHERE LOWER(cr.handle) = LOWER(:handle)
+                  AND cr.rating IS NOT NULL
+                ORDER BY c.created_at ASC
+            """),
+            {"handle": handle},
+        ).fetchall()
+
+        return {
+            "handle": handle,
+            "data_points": [
+                {"timestamp": r[0].isoformat() if r[0] else None, "rating": r[1]}
+                for r in rows
+            ],
+        }
+    finally:
+        db.close()
+
+
+# ─── 2. Most Improved Users ─────────────────────────────────────────────
+
+@app.get("/stats/improvement")
+async def most_improved(limit: int = Query(20, ge=1, le=100)):
+    """
+    Find CF handles with the largest rating improvement.
+    Improvement = max(rating) - min(rating) across all stored comparisons.
+    Only considers handles compared at least twice.
+    """
+    db = SessionLocal()
+    try:
+        rows = db.execute(
+            text(f"""
+                SELECT
+                    cr.handle,
+                    MAX(cr.rating) AS max_rating,
+                    MIN(cr.rating) AS min_rating,
+                    MAX(cr.rating) - MIN(cr.rating) AS improvement,
+                    COUNT(*) AS comparisons
+                FROM comparison_results cr
+                WHERE cr.rating IS NOT NULL
+                GROUP BY cr.handle
+                HAVING COUNT(*) >= 2
+                ORDER BY improvement DESC
+                LIMIT :lim
+            """),
+            {"lim": limit},
+        ).fetchall()
+
+        return {
+            "users": [
+                {
+                    "handle": r[0],
+                    "max_rating": r[1],
+                    "min_rating": r[2],
+                    "improvement": r[3],
+                    "times_compared": r[4],
+                }
+                for r in rows
+            ]
+        }
+    finally:
+        db.close()
+
+
+# ─── 3. Head-to-Head ────────────────────────────────────────────────────
+
+@app.get("/stats/head-to-head")
+async def head_to_head(
+    userA: str = Query(..., min_length=1),
+    userB: str = Query(..., min_length=1),
+):
+    """
+    For every comparison where BOTH userA and userB were compared together,
+    count how many times each had a higher rating.
+
+    Returns: wins for A, wins for B, draws, total comparisons together.
+    """
+    db = SessionLocal()
+    try:
+        rows = db.execute(
+            text("""
+                SELECT c.id, a.rating AS rating_a, b.rating AS rating_b
+                FROM comparisons c
+                JOIN comparison_results a ON a.comparison_id = c.id AND LOWER(a.handle) = LOWER(:a)
+                JOIN comparison_results b ON b.comparison_id = c.id AND LOWER(b.handle) = LOWER(:b)
+                WHERE a.rating IS NOT NULL AND b.rating IS NOT NULL
+                ORDER BY c.created_at ASC
+            """),
+            {"a": userA, "b": userB},
+        ).fetchall()
+
+        wins_a = sum(1 for r in rows if r[1] > r[2])
+        wins_b = sum(1 for r in rows if r[2] > r[1])
+        draws = sum(1 for r in rows if r[1] == r[2])
+
+        # Build a timeline
+        timeline = []
+        for i, r in enumerate(rows):
+            timeline.append({
+                "comparison_id": r[0],
+                "rating_a": r[1],
+                "rating_b": r[2],
+                "winner": userA if r[1] > r[2] else (userB if r[2] > r[1] else "draw"),
+            })
+
+        return {
+            "userA": userA,
+            "userB": userB,
+            "wins_a": wins_a,
+            "wins_b": wins_b,
+            "draws": draws,
+            "total_comparisons": len(rows),
+            "timeline": timeline,
+        }
+    finally:
+        db.close()
+
+
+# ─── 4. Leaderboard ─────────────────────────────────────────────────────
+
+@app.get("/stats/leaderboard")
+async def leaderboard(limit: int = Query(20, ge=1, le=100)):
+    """
+    Top CF handles by their best-ever stored rating.
+    """
+    db = SessionLocal()
+    try:
+        rows = db.execute(
+            text(f"""
+                SELECT
+                    cr.handle,
+                    MAX(cr.rating) AS best_rating,
+                    MAX(cr.max_rating) AS best_ever_max,
+                    COUNT(*) AS times_compared
+                FROM comparison_results cr
+                WHERE cr.rating IS NOT NULL
+                GROUP BY cr.handle
+                ORDER BY best_rating DESC
+                LIMIT :lim
+            """),
+            {"lim": limit},
+        ).fetchall()
+
+        return {
+            "leaderboard": [
+                {
+                    "rank": i + 1,
+                    "handle": r[0],
+                    "best_rating": r[1],
+                    "best_max_rating": r[2],
+                    "times_compared": r[3],
+                }
+                for i, r in enumerate(rows)
+            ]
+        }
+    finally:
+        db.close()
+
+
+# ─── 5. Activity Over Time ──────────────────────────────────────────────
+
+@app.get("/stats/activity")
+async def activity(user: CFUser = Depends(get_current_user)):
+    """
+    Number of comparisons per day for this user.
+    Returns a list of {date, count} sorted by date.
+    """
+    db = SessionLocal()
+    try:
+        rows = db.execute(
+            text("""
+                SELECT
+                    DATE(created_at) AS day,
+                    COUNT(*) AS comparison_count
+                FROM comparisons
+                WHERE user_id = :uid
+                GROUP BY day
+                ORDER BY day ASC
+            """),
+            {"uid": user.id},
+        ).fetchall()
+
+        return {
+            "activity": [
+                {"date": r[0].isoformat(), "comparisons": r[1]}
+                for r in rows
+            ],
+            "total_comparisons": sum(r[1] for r in rows),
+            "total_days": len(rows),
+        }
     finally:
         db.close()
 

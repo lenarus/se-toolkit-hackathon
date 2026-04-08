@@ -409,6 +409,235 @@ async function loadComparison(id) {
 }
 
 /* ═══════════════════════════════════════════════════════
+   STATS SUBTABS
+   ═══════════════════════════════════════════════════════ */
+
+function switchSubtab(name) {
+    document.querySelectorAll(".subtab").forEach(t => t.classList.remove("active"));
+    document.querySelectorAll(".sub-content").forEach(c => c.classList.remove("active"));
+    document.querySelector(`.subtab[data-sub="${name}"]`).classList.add("active");
+    document.getElementById(`sub-${name}`).classList.add("active");
+    hideStatsError();
+}
+
+function showStatsError(msg) {
+    const el = document.getElementById("stats-error");
+    el.textContent = msg; el.classList.remove("hidden");
+}
+function hideStatsError() {
+    document.getElementById("stats-error").classList.add("hidden");
+}
+
+function showLoadingId(id) { document.getElementById(id).classList.remove("hidden"); }
+function hideLoadingId(id) { document.getElementById(id).classList.add("hidden"); }
+
+/* ── Leaderboard ────────────────────────────────────── */
+
+async function loadLeaderboard() {
+    hideStatsError();
+    showLoadingId("leaderboard-loading");
+    document.getElementById("leaderboard-data").innerHTML = "";
+    try {
+        const res = await fetch(`${API}/stats/leaderboard`);
+        if (!res.ok) throw new Error("Failed to load leaderboard");
+        const data = await res.json();
+        renderLeaderboard(data.leaderboard);
+    } catch (err) { showStatsError(err.message); }
+    finally { hideLoadingId("leaderboard-loading"); }
+}
+
+function renderLeaderboard(users) {
+    if (!users.length) { document.getElementById("leaderboard-data").innerHTML = "<p style='color:#888;text-align:center;'>No data yet. Compare some users first!</p>"; return; }
+    let html = `<table class="lb-table"><thead><tr><th>#</th><th>Handle</th><th>Best Rating</th><th>Best Max</th><th>Compared</th></tr></thead><tbody>`;
+    users.forEach(u => {
+        const rankClass = u.rank === 1 ? "gold" : u.rank === 2 ? "silver" : u.rank === 3 ? "bronze" : "";
+        html += `<tr>
+            <td><span class="lb-rank ${rankClass}">${u.rank}</span></td>
+            <td style="font-weight:600;color:#eee;">${u.handle}</td>
+            <td style="color:#667eea;font-weight:700;">${u.best_rating}</td>
+            <td>${u.best_max_rating ?? "—"}</td>
+            <td>${u.times_compared}</td>
+        </tr>`;
+    });
+    html += "</tbody></table>";
+    document.getElementById("leaderboard-data").innerHTML = html;
+}
+
+/* ── Most Improved ──────────────────────────────────── */
+
+async function loadImprovement() {
+    hideStatsError();
+    showLoadingId("improvement-loading");
+    document.getElementById("improvement-data").innerHTML = "";
+    try {
+        const res = await fetch(`${API}/stats/improvement`);
+        if (!res.ok) throw new Error("Failed to load most improved");
+        const data = await res.json();
+        renderImprovement(data.users);
+    } catch (err) { showStatsError(err.message); }
+    finally { hideLoadingId("improvement-loading"); }
+}
+
+function renderImprovement(users) {
+    if (!users.length) { document.getElementById("improvement-data").innerHTML = "<p style='color:#888;text-align:center;'>Need at least 2 comparisons per user to show improvement.</p>"; return; }
+    let html = `<table class="lb-table"><thead><tr><th>Handle</th><th>Min Rating</th><th>Max Rating</th><th>Improvement</th><th>Compared</th></tr></thead><tbody>`;
+    users.forEach(u => {
+        const impColor = u.improvement > 0 ? "#2ed573" : u.improvement < 0 ? "#e74c3c" : "#888";
+        html += `<tr>
+            <td style="font-weight:600;color:#eee;">${u.handle}</td>
+            <td>${u.min_rating}</td>
+            <td>${u.max_rating}</td>
+            <td style="color:${impColor};font-weight:700;">${u.improvement > 0 ? "+" : ""}${u.improvement}</td>
+            <td>${u.times_compared}</td>
+        </tr>`;
+    });
+    html += "</tbody></table>";
+    document.getElementById("improvement-data").innerHTML = html;
+}
+
+/* ── Head-to-Head ───────────────────────────────────── */
+
+async function loadHeadToHead() {
+    const a = document.getElementById("h2h-userA").value.trim();
+    const b = document.getElementById("h2h-userB").value.trim();
+    if (!a || !b) { showStatsError("Enter both User A and User B."); return; }
+
+    hideStatsError();
+    showLoadingId("h2h-loading");
+    document.getElementById("h2h-data").innerHTML = "";
+    try {
+        const res = await fetch(`${API}/stats/head-to-head?userA=${encodeURIComponent(a)}&userB=${encodeURIComponent(b)}`);
+        if (!res.ok) throw new Error("Failed to load head-to-head");
+        const data = await res.json();
+        renderHeadToHead(data);
+    } catch (err) { showStatsError(err.message); }
+    finally { hideLoadingId("h2h-loading"); }
+}
+
+function renderHeadToHead(d) {
+    if (d.total_comparisons === 0) {
+        document.getElementById("h2h-data").innerHTML = `<p style='color:#888;text-align:center;'>No joint comparisons found for ${d.userA} and ${d.userB}.</p>`;
+        return;
+    }
+    let html = `<div class="h2h-score">
+        <div class="h2h-score-item"><div class="num">${d.wins_a}</div><div class="lbl">${d.userA}</div></div>
+        <div class="h2h-score-item"><div class="num">${d.draws}</div><div class="lbl">Draws</div></div>
+        <div class="h2h-score-item"><div class="num">${d.wins_b}</div><div class="lbl">${d.userB}</div></div>
+    </div>`;
+
+    html += `<div class="h2h-timeline">`;
+    d.timeline.forEach(t => {
+        const wClass = t.winner === d.userA ? "a" : t.winner === d.userB ? "b" : "draw";
+        html += `<div class="h2h-row">
+            <span style="color:#aaa;min-width:30px;">#${t.comparison_id}</span>
+            <span style="color:${t.rating_a > t.rating_b ? '#667eea' : '#ccc'};min-width:50px;">${t.rating_a}</span>
+            <span style="color:#666;">vs</span>
+            <span style="color:${t.rating_b > t.rating_a ? '#2ed573' : '#ccc'};min-width:50px;">${t.rating_b}</span>
+            <span class="winner ${wClass}">${t.winner === "draw" ? "Draw" : t.winner + " wins"}</span>
+        </div>`;
+    });
+    html += "</div>";
+    document.getElementById("h2h-data").innerHTML = html;
+}
+
+/* ── Rating Progress ────────────────────────────────── */
+
+let rpChartInstance = null;
+
+async function loadRatingProgress() {
+    const handle = document.getElementById("rp-handle").value.trim();
+    if (!handle) { showStatsError("Enter a handle."); return; }
+
+    hideStatsError();
+    showLoadingId("rp-loading");
+    document.getElementById("rp-data").innerHTML = "";
+    try {
+        const res = await authFetch(`${API}/stats/rating-progress/${encodeURIComponent(handle)}`);
+        if (!res.ok) throw new Error("Failed to load rating progress");
+        const data = await res.json();
+        renderRatingProgress(data);
+    } catch (err) { showStatsError(err.message); }
+    finally { hideLoadingId("rp-loading"); }
+}
+
+function renderRatingProgress(data) {
+    const pts = data.data_points || [];
+    if (!pts.length) {
+        document.getElementById("rp-data").innerHTML = `<p style='color:#888;text-align:center;'>No stored data for <strong>${data.handle}</strong>.</p>`;
+        return;
+    }
+    if (rpChartInstance) { rpChartInstance.destroy(); rpChartInstance = null; }
+
+    const wrap = document.createElement("div");
+    wrap.className = "chart-container";
+    const canvas = document.createElement("canvas");
+    canvas.id = "rp-canvas";
+    canvas.height = 280;
+    wrap.appendChild(canvas);
+    document.getElementById("rp-data").innerHTML = "";
+    document.getElementById("rp-data").appendChild(wrap);
+
+    rpChartInstance = new Chart(canvas.getContext("2d"), {
+        type: "line",
+        data: {
+            labels: pts.map((_, i) => `#${i + 1}`),
+            datasets: [{
+                label: data.handle,
+                data: pts.map(p => p.rating),
+                borderColor: "#667eea",
+                backgroundColor: "rgba(102,126,234,.15)",
+                fill: true, tension: .3, borderWidth: 2, pointRadius: 4,
+            }],
+        },
+        options: {
+            responsive: true,
+            scales: {
+                x: { ticks: { color: "#aaa" }, title: { display: true, text: "Comparison #", color: "#888" } },
+                y: { ticks: { color: "#aaa" }, title: { display: true, text: "Rating", color: "#888" } },
+            },
+            plugins: { legend: { labels: { color: "#ccc" } } },
+        },
+    });
+}
+
+/* ── Activity ───────────────────────────────────────── */
+
+async function loadActivity() {
+    hideStatsError();
+    showLoadingId("activity-loading");
+    document.getElementById("activity-data").innerHTML = "";
+    try {
+        const res = await authFetch(`${API}/stats/activity`);
+        if (!res.ok) throw new Error("Failed to load activity");
+        const data = await res.json();
+        renderActivity(data);
+    } catch (err) { showStatsError(err.message); }
+    finally { hideLoadingId("activity-loading"); }
+}
+
+function renderActivity(data) {
+    const items = data.activity || [];
+    if (!items.length) {
+        document.getElementById("activity-data").innerHTML = "<p style='color:#888;text-align:center;'>No activity yet. Start comparing!</p>";
+        return;
+    }
+    const maxCount = Math.max(...items.map(i => i.comparisons), 1);
+    let html = `<p style="color:#888;margin-bottom:10px;">Total: <strong style="color:#667eea;">${data.total_comparisons}</strong> comparisons over <strong style="color:#667eea;">${data.total_days}</strong> day(s)</p>`;
+    html += `<div class="activity-bars">`;
+    items.forEach(item => {
+        const h = Math.max((item.comparisons / maxCount) * 120, 4);
+        const shortDate = item.date.slice(5); // MM-DD
+        html += `<div class="activity-bar-wrap">
+            <div class="activity-bar-count">${item.comparisons}</div>
+            <div class="activity-bar" style="height:${h}px;" title="${item.date}: ${item.comparisons} comparisons"></div>
+            <div class="activity-bar-label">${shortDate}</div>
+        </div>`;
+    });
+    html += "</div>";
+    document.getElementById("activity-data").innerHTML = html;
+}
+
+/* ═══════════════════════════════════════════════════════
    HELPERS
    ═══════════════════════════════════════════════════════ */
 
