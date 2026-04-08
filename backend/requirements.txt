@@ -1,0 +1,17 @@
+# FastAPI - web framework
+fastapi==0.109.0
+
+# Uvicorn - ASGI server
+uvicorn==0.27.0
+
+# HTTP client for async requests
+httpx==0.26.0
+
+# PostgreSQL adapter
+psycopg2-binary==2.9.9
+
+# SQLAlchemy - ORM
+sqlalchemy==2.0.25
+
+# Environment variables
+python-dotenv==1.0.0

@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CF Compare - Codeforces User Comparison</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🏆 CF Compare</h1>
+            <p class="subtitle">Compare Codeforces users and see their performance side by side</p>
+        </header>
+
+        <!-- Input Section -->
+        <section class="input-section">
+            <div class="input-group">
+                <label for="handles-input">Enter Codeforces handles (comma-separated):</label>
+                <input 
+                    type="text" 
+                    id="handles-input" 
+                    placeholder="e.g., tourist, petr, Benq"
+                    value="tourist, petr"
+                >
+                <button id="compare-btn" onclick="compareUsers()">
+                    Compare
+                </button>
+            </div>
+            <p class="hint">Enter 2-5 handles separated by commas</p>
+        </section>
+
+        <!-- Loading Indicator -->
+        <div id="loading" class="loading hidden">
+            <div class="spinner"></div>
+            <p>Fetching data from Codeforces...</p>
+        </div>
+
+        <!-- Error Message -->
+        <div id="error-message" class="error hidden"></div>
+
+        <!-- Results Table -->
+        <section id="results-section" class="hidden">
+            <h2>Comparison Results</h2>
+            <div class="table-container">
+                <table id="comparison-table">
+                    <thead>
+                        <tr>
+                            <th>Metric</th>
+                            <!-- User columns will be added dynamically -->
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Rows will be added dynamically -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer>
+            <p>Data provided by <a href="https://codeforces.com" target="_blank">Codeforces API</a></p>
+        </footer>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

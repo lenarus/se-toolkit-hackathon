@@ -1,0 +1,63 @@
+services:
+  # ─── PostgreSQL Database ─────────────────────────────────────────────
+  db:
+    image: postgres:15-alpine
+    container_name: cfcompare-db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-cfuser}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cfpassword}
+      POSTGRES_DB: ${POSTGRES_DB:-cfcompare}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data  # Persistent storage
+      - ./docker/init-db.sql:/docker-entrypoint-initdb.d/init.sql  # Initialize schema
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-cfuser}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - cfcompare-network
+
+  # ─── Backend (FastAPI) ───────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: ../docker/Dockerfile.backend
+    container_name: cfcompare-backend
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-cfuser}:${POSTGRES_PASSWORD:-cfpassword}@db:5432/${POSTGRES_DB:-cfcompare}
+      API_KEY: ${API_KEY}
+      API_SECRET: ${API_SECRET}
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app  # Mount for hot-reloading in development
+    networks:
+      - cfcompare-network
+
+  # ─── Frontend (Nginx) ────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: ../docker/Dockerfile.frontend
+    container_name: cfcompare-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    networks:
+      - cfcompare-network
+
+# ─── Volumes ─────────────────────────────────────────────────────────────
+volumes:
+  postgres_data:  # Persistent database storage
+
+# ─── Network ─────────────────────────────────────────────────────────────
+networks:
+  cfcompare-network:
+    driver: bridge
